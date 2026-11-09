@@ -83,23 +83,25 @@ export const GoogleAuthModal: React.FC<GoogleAuthModalProps> = ({
     let authenticatedPhoto: string | null = null;
 
     try {
-      // 1. Try Native Android Google Account Picker via GoogleAuth plugin
-      const { GoogleAuth } = await import('@codetrix-studio/capacitor-google-auth');
-      try {
+      const isNative = typeof window !== 'undefined' && !!(window as any).Capacitor?.isNativePlatform?.();
+
+      if (isNative) {
+        // NATIVE ANDROID: Exclusively use native GoogleAuth without web redirect fallback!
+        const { GoogleAuth } = await import('@codetrix-studio/capacitor-google-auth');
         await GoogleAuth.initialize({
           clientId: '323750725817-9q4k308ras1pls9jej7fs7cvaq35n9vp.apps.googleusercontent.com',
           scopes: ['profile', 'email'],
           grantOfflineAccess: true,
         });
+
         const googleUser = await GoogleAuth.signIn();
         if (googleUser && googleUser.email) {
           authenticatedEmail = googleUser.email;
           authenticatedDisplayName = googleUser.name || (googleUser as any).displayName || googleUser.email.split('@')[0];
           authenticatedPhoto = googleUser.imageUrl;
         }
-      } catch (nativeErr: any) {
-        console.warn('Native GoogleAuth notice, attempting standard Firebase popup:', nativeErr);
-        // 2. Fallback to Firebase Google Provider popup
+      } else {
+        // WEB BROWSER: Standard Firebase Google Provider popup
         const result = await signInWithPopup(auth, googleProvider);
         if (result.user.email) {
           authenticatedEmail = result.user.email;
@@ -107,9 +109,9 @@ export const GoogleAuthModal: React.FC<GoogleAuthModalProps> = ({
           authenticatedPhoto = result.user.photoURL;
         }
       }
-    } catch (popupErr: any) {
-      console.warn('Google sign-in error:', popupErr?.message || popupErr);
-      setError('Unable to sign in with Google account. Please ensure Google Play Services is enabled on your device.');
+    } catch (authErr: any) {
+      console.warn('Google sign-in error:', authErr);
+      setError('Google sign-in could not be completed. Please try again or select your account.');
       setIsLoading(false);
       return;
     } finally {

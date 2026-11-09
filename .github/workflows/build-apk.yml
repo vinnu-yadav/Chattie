@@ -46,10 +46,19 @@ jobs:
           fi
           npx cap sync android
 
-      - name: Grant Execute Permission to Gradle Wrapper
+      - name: Ensure Gradle Wrapper Exists
         run: |
           cd android
+          if [ ! -f "gradlew" ]; then
+            echo "gradlew not found, downloading Capacitor standard gradle wrapper..."
+            mkdir -p gradle/wrapper
+            curl -s -L -o gradlew https://raw.githubusercontent.com/ionic-team/capacitor/main/android-template/gradlew
+            curl -s -L -o gradlew.bat https://raw.githubusercontent.com/ionic-team/capacitor/main/android-template/gradlew.bat
+            curl -s -L -o gradle/wrapper/gradle-wrapper.properties https://raw.githubusercontent.com/ionic-team/capacitor/main/android-template/gradle/wrapper/gradle-wrapper.properties
+            curl -s -L -o gradle/wrapper/gradle-wrapper.jar https://raw.githubusercontent.com/ionic-team/capacitor/main/android-template/gradle/wrapper/gradle-wrapper.jar
+          fi
           chmod +x gradlew
+          ls -la gradlew
 
       - name: Build Android Debug APK
         run: |

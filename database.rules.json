@@ -1,0 +1,34 @@
+{
+  "rules": {
+    "users": {
+      "$userId": {
+        ".read": "auth != null",
+        ".write": "auth != null && (data.val() == null || data.child('googleEmail').val() == auth.token.email || $userId == auth.uid)"
+      }
+    },
+    "messages": {
+      "$messageId": {
+        ".read": "auth != null && (data.child('senderId').val() == auth.uid || data.child('receiverId').val() == auth.uid)",
+        ".write": "auth != null && (!data.exists() || data.child('senderId').val() == auth.uid || data.child('receiverId').val() == auth.uid)"
+      }
+    },
+    "conversations": {
+      "$convId": {
+        ".read": "auth != null",
+        ".write": "auth != null"
+      }
+    },
+    "friendRequests": {
+      "$requestId": {
+        ".read": "auth != null",
+        ".write": "auth != null"
+      }
+    },
+    "calls": {
+      "$callId": {
+        ".read": "auth != null",
+        ".write": "auth != null"
+      }
+    }
+  }
+}

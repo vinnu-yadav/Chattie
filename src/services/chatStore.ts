@@ -8,62 +8,8 @@ const STORAGE_CONVERSATIONS_KEY = 'chattie_conversations_v1';
 const STORAGE_SESSION_KEY = 'chattie_session_user_id';
 const STORAGE_FRIEND_REQUESTS_KEY = 'chattie_friend_requests_v1';
 
-// Default seeded contacts for rich demo experience
-const INITIAL_USERS: User[] = [
-  {
-    id: 'user_sophia',
-    chatId: '74129',
-    googleEmail: 'sophia.chen@example.com',
-    googleName: 'Sophia Chen',
-    name: 'Sophia Chen',
-    handle: '@sophia',
-    password: 'password123',
-    avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&auto=format&fit=crop&q=80',
-    bio: 'Product Designer & Coffee Aficionado ☕️ Always down for clean UI chats.',
-    createdAt: Date.now() - 86400000 * 30,
-    isOnline: true,
-  },
-  {
-    id: 'user_marcus',
-    chatId: '82045',
-    googleEmail: 'marcus.vance@example.com',
-    googleName: 'Marcus Vance',
-    name: 'Marcus Vance',
-    handle: '@marcus_v',
-    password: 'password123',
-    avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80',
-    bio: 'Fullstack developer & mechanical keyboard enthusiast 💻',
-    createdAt: Date.now() - 86400000 * 20,
-    isOnline: true,
-  },
-  {
-    id: 'user_elena',
-    chatId: '39104',
-    googleEmail: 'elena.rostova@example.com',
-    googleName: 'Elena Rostova',
-    name: 'Elena Rostova',
-    handle: '@elena_r',
-    password: 'password123',
-    avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
-    bio: 'Architectural photographer & digital nomad ✈️ Minimalist vibes.',
-    createdAt: Date.now() - 86400000 * 15,
-    isOnline: false,
-    lastSeen: Date.now() - 3600000 * 2,
-  },
-  {
-    id: 'user_liam',
-    chatId: '51628',
-    googleEmail: 'liam.miller@example.com',
-    googleName: 'Liam Miller',
-    name: 'Liam Miller',
-    handle: '@liam_m',
-    password: 'password123',
-    avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&auto=format&fit=crop&q=80',
-    bio: 'Music producer & sound engineer 🎧 Catch me in the studio.',
-    createdAt: Date.now() - 86400000 * 10,
-    isOnline: true,
-  },
-];
+// Real users only (no dummy/bot accounts)
+const INITIAL_USERS: User[] = [];
 
 const INITIAL_CONVERSATIONS: Conversation[] = [];
 const INITIAL_MESSAGES: Message[] = [];
@@ -107,6 +53,8 @@ if (broadcastChannel) {
   };
 }
 
+const DUMMY_IDS = new Set(['user_sophia', 'user_marcus', 'user_elena', 'user_liam', 'user_chattie_bot']);
+
 // Local storage helpers
 export function getUsers(): User[] {
   try {
@@ -115,7 +63,12 @@ export function getUsers(): User[] {
       localStorage.setItem(STORAGE_USERS_KEY, JSON.stringify(INITIAL_USERS));
       return INITIAL_USERS;
     }
-    return JSON.parse(data);
+    const parsed: User[] = JSON.parse(data);
+    const cleaned = parsed.filter((u) => !DUMMY_IDS.has(u.id));
+    if (cleaned.length !== parsed.length) {
+      localStorage.setItem(STORAGE_USERS_KEY, JSON.stringify(cleaned));
+    }
+    return cleaned;
   } catch {
     return INITIAL_USERS;
   }
@@ -174,15 +127,7 @@ export function saveMessages(messages: Message[]): void {
   }
 }
 
-const INITIAL_FRIEND_REQUESTS: FriendRequest[] = [
-  {
-    id: 'freq_sophia_marcus',
-    senderId: 'user_sophia',
-    receiverId: 'user_marcus',
-    status: 'accepted',
-    createdAt: Date.now() - 86400000 * 5,
-  },
-];
+const INITIAL_FRIEND_REQUESTS: FriendRequest[] = [];
 
 export function getFriendRequests(): FriendRequest[] {
   try {
@@ -191,7 +136,12 @@ export function getFriendRequests(): FriendRequest[] {
       localStorage.setItem(STORAGE_FRIEND_REQUESTS_KEY, JSON.stringify(INITIAL_FRIEND_REQUESTS));
       return INITIAL_FRIEND_REQUESTS;
     }
-    return JSON.parse(data);
+    const parsed: FriendRequest[] = JSON.parse(data);
+    const cleaned = parsed.filter((r) => !DUMMY_IDS.has(r.senderId) && !DUMMY_IDS.has(r.receiverId));
+    if (cleaned.length !== parsed.length) {
+      localStorage.setItem(STORAGE_FRIEND_REQUESTS_KEY, JSON.stringify(cleaned));
+    }
+    return cleaned;
   } catch {
     return INITIAL_FRIEND_REQUESTS;
   }
@@ -457,24 +407,6 @@ export function registerUser(payload: RegisterPayload): { success: boolean; user
   } catch {
     // fallback
   }
-
-  // Connect initial friends for the new user so their inbox shows friends right away
-  const friendRequests = getFriendRequests();
-  friendRequests.push({
-    id: `freq_${newUser.id}_sophia`,
-    senderId: 'user_sophia',
-    receiverId: newUser.id,
-    status: 'accepted',
-    createdAt: Date.now() - 30000,
-  });
-  friendRequests.push({
-    id: `freq_${newUser.id}_marcus`,
-    senderId: 'user_marcus',
-    receiverId: newUser.id,
-    status: 'accepted',
-    createdAt: Date.now() - 20000,
-  });
-  saveFriendRequests(friendRequests);
 
   return {
     success: true,

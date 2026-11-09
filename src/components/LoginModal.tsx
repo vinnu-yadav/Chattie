@@ -202,21 +202,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
             </button>
           </form>
 
-          {/* Quick Demo Credentials Info for testing convenience */}
-          <div className="mt-5 p-3 rounded-xl bg-slate-800/40 border border-slate-700/60 text-xs text-slate-400">
-            <div className="font-semibold text-slate-300 mb-1 flex items-center gap-1">
-              <HelpCircle className="w-3.5 h-3.5 text-indigo-400" />
-              <span>Demo Accounts (Instant Test):</span>
-            </div>
-            <div className="grid grid-cols-2 gap-1 text-[11px] text-slate-300">
-              <div>
-                Sophia: ID <span className="font-mono text-indigo-300 font-bold">74129</span> (pwd: <span className="font-mono">password123</span>)
-              </div>
-              <div>
-                Marcus: ID <span className="font-mono text-indigo-300 font-bold">82045</span> (pwd: <span className="font-mono">password123</span>)
-              </div>
-            </div>
-          </div>
+
 
           <div className="mt-5 pt-4 border-t border-slate-800 text-center text-xs text-slate-400">
             <span>Don&apos;t have an account yet? </span>

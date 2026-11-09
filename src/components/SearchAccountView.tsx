@@ -72,7 +72,7 @@ export const SearchAccountView: React.FC<SearchAccountViewProps> = ({
           type="text"
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          placeholder="Search people by name (e.g. Sophia, Marcus, Elena)..."
+          placeholder="Search people by name or handle..."
           className="w-full pl-12 pr-4 py-4 rounded-2xl bg-slate-900 border border-slate-700/80 text-white placeholder-slate-500 shadow-xl shadow-black/20 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition text-base"
         />
         {searchQuery && (

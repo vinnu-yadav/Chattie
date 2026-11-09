@@ -12,7 +12,7 @@ import { GoogleAuthModal } from './components/GoogleAuthModal';
 import { LoginModal } from './components/LoginModal';
 import { ForgotPasswordModal } from './components/ForgotPasswordModal';
 import { ProfileModal } from './components/ProfileModal';
-import { User, Conversation } from './types';
+import { User, Conversation, PublicUser } from './types';
 import {
   getCurrentUser,
   getConversations,
@@ -20,6 +20,22 @@ import {
   getUsers,
   loginWithChatId,
 } from './services/chatStore';
+import {
+  ActiveCall,
+  CallType,
+  webrtc,
+  ringtone,
+  subscribeToCalls,
+  broadcastCallEvent,
+} from './services/callService';
+import {
+  showMessageNotification,
+  showCallNotification,
+  requestNotificationPermission,
+} from './services/notificationService';
+import { IncomingCallModal } from './components/IncomingCallModal';
+import { CallModal } from './components/CallModal';
+import { MediaPermissionModal } from './components/MediaPermissionModal';
 import { Sparkles, Shield, UserCheck, KeyRound } from 'lucide-react';
 
 export default function App() {
@@ -34,6 +50,12 @@ export default function App() {
   const [isForgotPasswordOpen, setIsForgotPasswordOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [prefilledChatId, setPrefilledChatId] = useState<string>('');
+  const [isPermissionModalOpen, setIsPermissionModalOpen] = useState(false);
+
+  // Calling state
+  const [activeCall, setActiveCall] = useState<ActiveCall | null>(null);
+  const [incomingCall, setIncomingCall] = useState<ActiveCall | null>(null);
+  const [callNotificationObj, setCallNotificationObj] = useState<Notification | null>(null);
 
   // Toast notification
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -52,11 +74,107 @@ export default function App() {
 
   useEffect(() => {
     syncState();
-    const unsubscribe = subscribeToStore(() => {
+    const unsubscribe = subscribeToStore((type, data) => {
       syncState();
+      // If a new message arrived and it is for current user, fire notification
+      if (type === 'messages_updated') {
+        const user = getCurrentUser();
+        if (user && data && data.receiverId === user.id) {
+          const sender = getUsers().find((u) => u.id === data.senderId);
+          showMessageNotification(sender?.name || 'Friend', data.text, sender?.avatar);
+        }
+      }
     });
     return unsubscribe;
   }, []);
+
+  // WebRTC Calling Signal Listener
+  useEffect(() => {
+    const unsubscribeCalls = subscribeToCalls(async ({ type, payload }) => {
+      const user = getCurrentUser();
+      if (!user) return;
+
+      if (type === 'call_initiated') {
+        // Someone is calling current user
+        if (payload.receiverId === user.id) {
+          setIncomingCall(payload);
+          // Ring call like Instagram (Web Audio API chime synthesized)
+          ringtone.start();
+          const notif = showCallNotification(payload.callerName, payload.callType, payload.callerAvatar);
+          if (notif) setCallNotificationObj(notif);
+        }
+      } else if (type === 'call_accepted') {
+        // Caller receives acceptance from receiver
+        if (activeCall && activeCall.callId === payload.callId) {
+          ringtone.stop();
+          setActiveCall((prev) => (prev ? { ...prev, status: 'connected', startedAt: Date.now() } : null));
+          showToast(`Call connected with ${payload.receiverName}! 🟢`);
+        }
+      } else if (type === 'call_declined') {
+        if ((activeCall && activeCall.callId === payload.callId) || (incomingCall && incomingCall.callId === payload.callId)) {
+          ringtone.stop();
+          webrtc.stopMedia();
+          setActiveCall(null);
+          setIncomingCall(null);
+          if (callNotificationObj) {
+            callNotificationObj.close();
+            setCallNotificationObj(null);
+          }
+          showToast('Call was declined or missed.');
+        }
+      } else if (type === 'call_ended') {
+        if ((activeCall && activeCall.callId === payload.callId) || (incomingCall && incomingCall.callId === payload.callId)) {
+          ringtone.stop();
+          webrtc.stopMedia();
+          setActiveCall(null);
+          setIncomingCall(null);
+          if (callNotificationObj) {
+            callNotificationObj.close();
+            setCallNotificationObj(null);
+          }
+          showToast('Call ended.');
+        }
+      } else if (type === 'webrtc_offer') {
+        if (incomingCall && incomingCall.callId === payload.callId && payload.receiverId === user.id) {
+          try {
+            const answer = await webrtc.handleOffer(payload.offer);
+            broadcastCallEvent('webrtc_answer', {
+              callId: payload.callId,
+              answer,
+              callerId: payload.callerId,
+            });
+          } catch (e) {
+            console.warn('Error handling webrtc offer:', e);
+          }
+        }
+      } else if (type === 'webrtc_answer') {
+        if (activeCall && activeCall.callId === payload.callId && payload.callerId === user.id) {
+          try {
+            await webrtc.handleAnswer(payload.answer);
+          } catch (e) {
+            console.warn('Error handling webrtc answer:', e);
+          }
+        }
+      } else if (type === 'webrtc_ice') {
+        if (
+          (activeCall && activeCall.callId === payload.callId) ||
+          (incomingCall && incomingCall.callId === payload.callId)
+        ) {
+          try {
+            await webrtc.addIceCandidate(payload.candidate);
+          } catch (e) {
+            console.warn('Error adding ICE candidate:', e);
+          }
+        }
+      }
+    });
+
+    return () => {
+      unsubscribeCalls();
+      ringtone.stop();
+      webrtc.stopMedia();
+    };
+  }, [activeCall, incomingCall, callNotificationObj]);
 
   // Handlers for switching between auth modals
   const handleOpenLoginWithId = (chatId?: string) => {
@@ -94,12 +212,122 @@ export default function App() {
     setCurrentTab('inbox');
   };
 
-  const handleQuickSwitchUser = (chatId: string) => {
-    const res = loginWithChatId(chatId, 'password123');
-    if (res.success && res.user) {
-      setCurrentUser(res.user);
-      showToast(`Switched account to ${res.user.name} (#${res.user.chatId})`);
+  // Start outgoing Voice or Video Call
+  const handleStartCall = async (targetUser: User | PublicUser, callType: CallType) => {
+    if (!currentUser) {
+      handleOpenLoginWithId();
+      return;
     }
+
+    try {
+      // 1. Get user media (mic & camera if video)
+      await webrtc.initLocalStream(callType);
+
+      const callId = 'call_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6);
+      const newCall: ActiveCall = {
+        callId,
+        callerId: currentUser.id,
+        callerName: currentUser.name,
+        callerAvatar: currentUser.avatar,
+        receiverId: targetUser.id,
+        receiverName: targetUser.name,
+        receiverAvatar: targetUser.avatar,
+        callType,
+        status: 'outgoing',
+      };
+
+      // 2. Setup WebRTC peer connection
+      webrtc.createPeerConnection(
+        (_stream) => {
+          // Remote stream received
+        },
+        (candidate) => {
+          broadcastCallEvent('webrtc_ice', {
+            callId,
+            candidate,
+            senderId: currentUser.id,
+          });
+        }
+      );
+
+      // 3. Create offer
+      const offer = await webrtc.createOffer();
+
+      // 4. Broadcast call initiation & WebRTC offer
+      broadcastCallEvent('call_initiated', newCall);
+      broadcastCallEvent('webrtc_offer', {
+        callId,
+        callerId: currentUser.id,
+        receiverId: targetUser.id,
+        offer,
+      });
+
+      setActiveCall(newCall);
+      showToast(`Calling ${targetUser.name}... 📞`);
+    } catch (err: any) {
+      console.warn('Could not start call:', err);
+      setIsPermissionModalOpen(true);
+    }
+  };
+
+  // Accept incoming call
+  const handleAcceptIncomingCall = async () => {
+    if (!incomingCall || !currentUser) return;
+    ringtone.stop();
+    if (callNotificationObj) {
+      callNotificationObj.close();
+      setCallNotificationObj(null);
+    }
+
+    try {
+      await webrtc.initLocalStream(incomingCall.callType);
+      webrtc.createPeerConnection(
+        (_stream) => {},
+        (candidate) => {
+          broadcastCallEvent('webrtc_ice', {
+            callId: incomingCall.callId,
+            candidate,
+            senderId: currentUser.id,
+          });
+        }
+      );
+
+      const acceptedCall: ActiveCall = {
+        ...incomingCall,
+        status: 'connected',
+        startedAt: Date.now(),
+      };
+
+      setActiveCall(acceptedCall);
+      setIncomingCall(null);
+
+      broadcastCallEvent('call_accepted', acceptedCall);
+    } catch (err) {
+      console.warn('Error accepting call:', err);
+      setIsPermissionModalOpen(true);
+    }
+  };
+
+  // Decline incoming call
+  const handleDeclineIncomingCall = () => {
+    if (!incomingCall) return;
+    ringtone.stop();
+    if (callNotificationObj) {
+      callNotificationObj.close();
+      setCallNotificationObj(null);
+    }
+    broadcastCallEvent('call_declined', { callId: incomingCall.callId });
+    setIncomingCall(null);
+  };
+
+  // End active call
+  const handleEndCall = () => {
+    if (activeCall) {
+      broadcastCallEvent('call_ended', { callId: activeCall.callId });
+      setActiveCall(null);
+    }
+    ringtone.stop();
+    webrtc.stopMedia();
   };
 
   return (
@@ -155,36 +383,19 @@ export default function App() {
             onRequestLogin={() => handleOpenLoginWithId()}
             onRequestRegister={handleOpenRegister}
             onNavigateToSearch={() => setCurrentTab('search')}
+            onStartVoiceCall={(targetUser) => handleStartCall(targetUser, 'voice')}
+            onStartVideoCall={(targetUser) => handleStartCall(targetUser, 'video')}
           />
         )}
       </main>
 
-      {/* Bottom Testing Bar for easy instant tester account switcher */}
+      {/* Bottom status bar */}
       <footer className="border-t border-slate-900 bg-slate-950/90 py-3 px-4 text-xs text-slate-400 flex flex-col sm:flex-row items-center justify-between gap-3">
         <div className="flex items-center gap-2 text-slate-400">
           <Shield className="w-4 h-4 text-indigo-400" />
           <span>
             Chattie • All search results protect Chat IDs. Login only via permanent 5-digit Chat ID & password.
           </span>
-        </div>
-
-        {/* Quick test switcher */}
-        <div className="flex items-center gap-2">
-          <span className="text-[11px] text-slate-400">Quick Test:</span>
-          <button
-            onClick={() => handleQuickSwitchUser('74129')}
-            className="px-2.5 py-1 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-800 text-[11px] font-mono cursor-pointer transition"
-            title="Log in as Sophia (#74129)"
-          >
-            Sophia #74129
-          </button>
-          <button
-            onClick={() => handleQuickSwitchUser('82045')}
-            className="px-2.5 py-1 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-800 text-[11px] font-mono cursor-pointer transition"
-            title="Log in as Marcus (#82045)"
-          >
-            Marcus #82045
-          </button>
         </div>
       </footer>
 
@@ -231,6 +442,34 @@ export default function App() {
             setCurrentUser(null);
             showToast('Logged out.');
           }}
+        />
+      )}
+
+      {/* 5. Permission Modal for Camera, Mic & Notifications */}
+      <MediaPermissionModal
+        isOpen={isPermissionModalOpen}
+        onClose={() => setIsPermissionModalOpen(false)}
+        onGranted={() => {
+          setIsPermissionModalOpen(false);
+          showToast('Permissions granted for voice/video calls! 🎙️🎥');
+        }}
+      />
+
+      {/* 6. Instagram-style Incoming Call Overlay Modal */}
+      {incomingCall && (
+        <IncomingCallModal
+          call={incomingCall}
+          onAccept={handleAcceptIncomingCall}
+          onDecline={handleDeclineIncomingCall}
+        />
+      )}
+
+      {/* 7. Full-Screen WebRTC Voice / Video Call Modal */}
+      {activeCall && (
+        <CallModal
+          call={activeCall}
+          isCaller={activeCall.callerId === currentUser?.id}
+          onEndCall={handleEndCall}
         />
       )}
     </div>

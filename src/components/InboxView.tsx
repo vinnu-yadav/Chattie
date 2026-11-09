@@ -39,6 +39,8 @@ interface InboxViewProps {
   onRequestLogin: () => void;
   onRequestRegister: () => void;
   onNavigateToSearch: () => void;
+  onStartVoiceCall: (user: User | PublicUser) => void;
+  onStartVideoCall: (user: User | PublicUser) => void;
 }
 
 const QUICK_EMOJIS = ['❤️', '😂', '🔥', '👍', '🎉', '✨', '👋', '🙌', '💯', '🚀'];
@@ -49,6 +51,8 @@ export const InboxView: React.FC<InboxViewProps> = ({
   onRequestLogin,
   onRequestRegister,
   onNavigateToSearch,
+  onStartVoiceCall,
+  onStartVideoCall,
 }) => {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -595,9 +599,29 @@ export const InboxView: React.FC<InboxViewProps> = ({
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2 text-slate-400">
-                  <div className="text-[11px] px-2.5 py-1 rounded-full bg-slate-800/80 text-slate-400 border border-slate-700/60 hidden sm:block">
-                    🔒 End-to-End Encrypted
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => onStartVoiceCall(otherParticipant)}
+                    className="p-2.5 rounded-xl bg-slate-800 hover:bg-emerald-600/30 text-slate-300 hover:text-emerald-400 border border-slate-700/80 hover:border-emerald-500/50 transition cursor-pointer flex items-center gap-1.5 text-xs font-medium"
+                    title="Start Voice Call"
+                  >
+                    <Phone className="w-4 h-4" />
+                    <span className="hidden sm:inline">Voice Call</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => onStartVideoCall(otherParticipant)}
+                    className="p-2.5 rounded-xl bg-slate-800 hover:bg-indigo-600/30 text-slate-300 hover:text-indigo-400 border border-slate-700/80 hover:border-indigo-500/50 transition cursor-pointer flex items-center gap-1.5 text-xs font-medium"
+                    title="Start Video Call"
+                  >
+                    <Video className="w-4 h-4" />
+                    <span className="hidden sm:inline">Video Call</span>
+                  </button>
+
+                  <div className="text-[11px] px-2.5 py-1 rounded-full bg-slate-800/80 text-slate-400 border border-slate-700/60 hidden lg:block">
+                    🔒 Encrypted
                   </div>
                 </div>
               </div>

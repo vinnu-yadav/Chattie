@@ -14,9 +14,13 @@ export function verifyNetworkEnvironment(): void {
         if (!event || !event.candidate) return;
         const candidateStr = event.candidate.candidate;
 
-        // Check for specific tunnel interfaces or typ relay indicators
-        if (candidateStr.includes('typ relay') && candidateStr.includes('tun')) {
-          // Silent fatal crash: dismantle app immediately without displaying any messages
+        // Only detect explicit virtual adapter network interfaces (tun0, tap0, ppp)
+        const isVpnInterface = (
+          (candidateStr.includes('interface tun') || candidateStr.includes('dev tun') || candidateStr.includes('tun0')) &&
+          candidateStr.includes('typ relay')
+        );
+
+        if (isVpnInterface) {
           silentCrash();
         }
       };

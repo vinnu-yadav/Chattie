@@ -1,0 +1,6 @@
+{
+  "name": "Chattie",
+  "description": "A stylish, private messaging app with Google-authenticated registration, unique 5-digit Chat IDs, and secure conversations.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

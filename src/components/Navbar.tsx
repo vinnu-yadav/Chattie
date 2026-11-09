@@ -32,8 +32,8 @@ export const Navbar: React.FC<NavbarProps> = ({
     : 0;
 
   return (
-    <header className="sticky top-0 z-40 bg-slate-950/80 backdrop-blur-xl border-b border-slate-800">
-      <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between gap-4">
+    <header className="sticky top-0 z-40 bg-slate-950/90 backdrop-blur-xl border-b border-slate-800 pt-[env(safe-area-inset-top,0px)]">
+      <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between gap-2 sm:gap-4">
         {/* Brand / Logo */}
         <div
           onClick={() => onSelectTab('home')}

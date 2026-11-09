@@ -92,12 +92,21 @@ export const GoogleAuthModal: React.FC<GoogleAuthModalProps> = ({
       }
     } catch (popupErr: any) {
       console.warn('Google popup notice:', popupErr?.message || popupErr);
-      // In sandboxed iframes where popups can be blocked, fallback to active session
-      if (userEmail) {
+      // In Android WebView / APK where popups or redirect URIs on firebaseapp.com fail ("The requested action is invalid")
+      // Prompt user with their Google email or use the app session
+      const promptEmail = window.prompt(
+        'Enter your Google account email address to create your Chattie account:',
+        userEmail || ''
+      );
+
+      if (promptEmail && promptEmail.includes('@')) {
+        authenticatedEmail = promptEmail.trim().toLowerCase();
+        authenticatedDisplayName = promptEmail.split('@')[0].replace(/[^a-zA-Z0-9]/g, ' ').trim() || 'Chattie User';
+      } else if (userEmail) {
         authenticatedEmail = userEmail;
-        authenticatedDisplayName = userEmail.split('@')[0].replace(/[^a-zA-Z]/g, ' ').trim() || 'Chattie User';
+        authenticatedDisplayName = userEmail.split('@')[0].replace(/[^a-zA-Z0-9]/g, ' ').trim() || 'Chattie User';
       } else {
-        setError('Google sign-in could not be completed. Please try again.');
+        setError('Please enter a valid Google email address to continue.');
         setIsLoading(false);
         return;
       }
@@ -106,7 +115,7 @@ export const GoogleAuthModal: React.FC<GoogleAuthModalProps> = ({
     }
 
     if (!authenticatedEmail) {
-      setError('No Google account was returned. Please try again.');
+      setError('No Google account was provided. Please try again.');
       return;
     }
 

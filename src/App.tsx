@@ -390,7 +390,7 @@ export default function App() {
       </main>
 
       {/* Bottom status bar */}
-      <footer className="border-t border-slate-900 bg-slate-950/90 py-3 px-4 text-xs text-slate-400 flex flex-col sm:flex-row items-center justify-between gap-3">
+      <footer className="border-t border-slate-900 bg-slate-950/90 py-3 px-4 pb-[max(env(safe-area-inset-bottom,0px),0.75rem)] text-xs text-slate-400 flex flex-col sm:flex-row items-center justify-between gap-3">
         <div className="flex items-center gap-2 text-slate-400">
           <Shield className="w-4 h-4 text-indigo-400" />
           <span>

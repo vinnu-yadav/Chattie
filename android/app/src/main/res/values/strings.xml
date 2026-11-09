@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Chattie</string>
+    <string name="title_activity_main">Chattie</string>
+    <string name="package_name">com.chattie</string>
+    <string name="custom_url_scheme">com.chattie</string>
+</resources>

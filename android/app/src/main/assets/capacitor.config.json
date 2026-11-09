@@ -1,0 +1,20 @@
+{
+	"appId": "com.chattie.app",
+	"appName": "Chattie",
+	"webDir": "dist",
+	"server": {
+		"androidScheme": "https",
+		"cleartext": true
+	},
+	"android": {
+		"allowMixedContent": true,
+		"captureInput": true
+	},
+	"plugins": {
+		"SplashScreen": {
+			"launchShowDuration": 2000,
+			"backgroundColor": "#020617",
+			"showSpinner": false
+		}
+	}
+}

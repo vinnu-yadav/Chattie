@@ -46382,13 +46382,13 @@ var Be = "4.19.1";
 	}), "PUBLIC").setMultipleInstances(true)), registerVersion(qe, Be, s), registerVersion(qe, Be, "esm2020");
 })();
 var app = getApps().length > 0 ? getApp() : initializeApp({
-	apiKey: "AIzaSyAN1gJdO1CmqwEtRCkKkCOj8VSBlXXh9YE",
+	apiKey: "AIzaSyDxDJaAwBq_WVWeSrhiNXMM9S1rQqLtuaA",
 	authDomain: "gen-lang-client-0421408721.firebaseapp.com",
 	databaseURL: "https://gen-lang-client-0421408721-default-rtdb.asia-southeast1.firebasedatabase.app",
 	projectId: "gen-lang-client-0421408721",
 	storageBucket: "gen-lang-client-0421408721.firebasestorage.app",
 	messagingSenderId: "323750725817",
-	appId: "1:323750725817:web:80f3830f00084e1214f368"
+	appId: "1:323750725817:android:593699b2c5d6420514f368"
 });
 var auth = getAuth(app);
 var db = getFirestore(app);

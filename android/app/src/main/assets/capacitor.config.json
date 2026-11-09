@@ -1,5 +1,5 @@
 {
-	"appId": "com.chattie.app",
+	"appId": "com.chattie",
 	"appName": "Chattie",
 	"webDir": "dist",
 	"server": {

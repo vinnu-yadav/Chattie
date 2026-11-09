@@ -73,7 +73,7 @@ export const GoogleAuthModal: React.FC<GoogleAuthModalProps> = ({
 
   if (!isOpen) return null;
 
-  // Real Google Sign-In for new users
+  // Real Google Sign-In for new users using Native Device Google Account Chooser
   const handleGoogleSignIn = async () => {
     setIsLoading(true);
     setError(null);
@@ -83,39 +83,41 @@ export const GoogleAuthModal: React.FC<GoogleAuthModalProps> = ({
     let authenticatedPhoto: string | null = null;
 
     try {
-      // Trigger genuine Firebase Google Authentication popup
-      const result = await signInWithPopup(auth, googleProvider);
-      if (result.user.email) {
-        authenticatedEmail = result.user.email;
-        authenticatedDisplayName = result.user.displayName || result.user.email.split('@')[0];
-        authenticatedPhoto = result.user.photoURL;
+      // 1. Try Native Android Google Account Picker via GoogleAuth plugin
+      const { GoogleAuth } = await import('@codetrix-studio/capacitor-google-auth');
+      try {
+        await GoogleAuth.initialize({
+          clientId: '323750725817-9q4k308ras1pls9jej7fs7cvaq35n9vp.apps.googleusercontent.com',
+          scopes: ['profile', 'email'],
+          grantOfflineAccess: true,
+        });
+        const googleUser = await GoogleAuth.signIn();
+        if (googleUser && googleUser.email) {
+          authenticatedEmail = googleUser.email;
+          authenticatedDisplayName = googleUser.name || (googleUser as any).displayName || googleUser.email.split('@')[0];
+          authenticatedPhoto = googleUser.imageUrl;
+        }
+      } catch (nativeErr: any) {
+        console.warn('Native GoogleAuth notice, attempting standard Firebase popup:', nativeErr);
+        // 2. Fallback to Firebase Google Provider popup
+        const result = await signInWithPopup(auth, googleProvider);
+        if (result.user.email) {
+          authenticatedEmail = result.user.email;
+          authenticatedDisplayName = result.user.displayName || result.user.email.split('@')[0];
+          authenticatedPhoto = result.user.photoURL;
+        }
       }
     } catch (popupErr: any) {
-      console.warn('Google popup notice:', popupErr?.message || popupErr);
-      // In Android WebView / APK where popups or redirect URIs on firebaseapp.com fail ("The requested action is invalid")
-      // Prompt user with their Google email or use the app session
-      const promptEmail = window.prompt(
-        'Enter your Google account email address to create your Chattie account:',
-        userEmail || ''
-      );
-
-      if (promptEmail && promptEmail.includes('@')) {
-        authenticatedEmail = promptEmail.trim().toLowerCase();
-        authenticatedDisplayName = promptEmail.split('@')[0].replace(/[^a-zA-Z0-9]/g, ' ').trim() || 'Chattie User';
-      } else if (userEmail) {
-        authenticatedEmail = userEmail;
-        authenticatedDisplayName = userEmail.split('@')[0].replace(/[^a-zA-Z0-9]/g, ' ').trim() || 'Chattie User';
-      } else {
-        setError('Please enter a valid Google email address to continue.');
-        setIsLoading(false);
-        return;
-      }
+      console.warn('Google sign-in error:', popupErr?.message || popupErr);
+      setError('Unable to sign in with Google account. Please ensure Google Play Services is enabled on your device.');
+      setIsLoading(false);
+      return;
     } finally {
       setIsLoading(false);
     }
 
     if (!authenticatedEmail) {
-      setError('No Google account was provided. Please try again.');
+      setError('No Google account was selected. Please tap Sign In with Google and choose your account.');
       return;
     }
 

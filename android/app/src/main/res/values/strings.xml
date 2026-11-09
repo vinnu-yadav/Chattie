@@ -4,4 +4,5 @@
     <string name="title_activity_main">Chattie</string>
     <string name="package_name">com.chattie</string>
     <string name="custom_url_scheme">com.chattie</string>
+    <string name="server_client_id">323750725817-9q4k308ras1pls9jej7fs7cvaq35n9vp.apps.googleusercontent.com</string>
 </resources>
